@@ -1,0 +1,57 @@
+services:
+  app:
+    image: joe640/cribsearch:325ecf614f362ad5bf899a1622875cd83d762c52
+    container_name: cribsearch-app
+    restart: unless-stopped
+
+    ports:
+      - "${APP_PORT:-8080}:80"
+
+    env_file:
+      - .env
+
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-cribsearch}
+      DB_USERNAME: ${DB_USERNAME:-cribsearch}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - cribsearch-network
+
+  db:
+    image: mariadb:11.4
+    container_name: cribsearch-db
+    restart: unless-stopped
+
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-cribsearch}
+      MARIADB_USER: ${DB_USERNAME:-cribsearch}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-secret}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-password}
+
+    volumes:
+      - cribsearch-db-data:/var/lib/mysql
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    networks:
+      - cribsearch-network
+
+volumes:
+  cribsearch-db-data:
+
+networks:
+  cribsearch-network:
+    driver: bridge

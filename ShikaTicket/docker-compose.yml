@@ -1,0 +1,58 @@
+
+services:
+  app:
+    image: joe640/shikaticket:b8df662830e9dff19ce02e48db4735229c4af828
+    container_name: shikaticket-app
+    restart: unless-stopped
+
+    ports:
+      - "${APP_PORT:-8080}:80"
+
+    env_file:
+      - .env
+
+    environment:
+      DB_CONNECTION: mysql
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-shikaticket}
+      DB_USERNAME: ${DB_USERNAME:-shikaticket}
+      DB_PASSWORD: ${DB_PASSWORD:-secret}
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    networks:
+      - shikaticket-network
+
+  db:
+    image: mariadb:11.4
+    container_name: shikaticket-db
+    restart: unless-stopped
+
+    environment:
+      MARIADB_DATABASE: ${DB_DATABASE:-shikaticket}
+      MARIADB_USER: ${DB_USERNAME:-shikaticket}
+      MARIADB_PASSWORD: ${DB_PASSWORD:-secret}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root-password}
+
+    volumes:
+      - shikaticket-db-data:/var/lib/mysql
+
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+    networks:
+      - shikaticket-network
+
+volumes:
+  shikaticket-db-data:
+
+networks:
+  shikaticket-network:
+    driver: bridge
